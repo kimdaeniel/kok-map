@@ -1,6 +1,7 @@
 "use client";
 
 import { CATEGORIES, CATEGORY_ORDER } from "@/lib/categories";
+import CategoryIcon from "./CategoryIcon";
 import type { CategoryId } from "@/lib/types";
 
 export interface Filter {
@@ -33,7 +34,7 @@ export default function FilterBar({ filter, counts, onChange }: Props) {
           style={{ "--chip-color": CATEGORIES[c].color } as React.CSSProperties}
           onClick={() => toggle(c)}
         >
-          {CATEGORIES[c].emoji} {CATEGORIES[c].label} <small>{counts[c]}</small>
+          <CategoryIcon category={c} /> {CATEGORIES[c].label} <small>{counts[c]}</small>
         </button>
       ))}
       <button

@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Flaticon 원본(512px). 앱에서는 public/icons의 축소본을 씀
+/design/flaticon/

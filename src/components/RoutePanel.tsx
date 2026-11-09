@@ -1,6 +1,6 @@
 "use client";
 
-import { CATEGORIES } from "@/lib/categories";
+import CategoryIcon from "./CategoryIcon";
 import { estimateWalkMinutes, formatDistance, pathDistance } from "@/lib/geo";
 import { naverAppWalkUrl, naverWebPlaceUrl, openNaver } from "@/lib/naver-links";
 import type { Place } from "@/lib/types";
@@ -56,7 +56,7 @@ export default function RoutePanel({ stops, open, onToggle, onSelect, onMove, on
               <li key={p.id} className={p.status === "visited" ? "route__item--done" : ""}>
                 <span className="route__num">{i + 1}</span>
                 <button className="route__name" onClick={() => onSelect(p.id)}>
-                  {CATEGORIES[p.category].emoji} {p.name}
+                  <CategoryIcon category={p.category} /> {p.name}
                 </button>
                 <button onClick={() => onMove(p.id, -1)} disabled={i === 0} aria-label="위로">
                   ▲

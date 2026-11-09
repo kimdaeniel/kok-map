@@ -2,20 +2,20 @@ import type { CategoryId } from "./types";
 
 export interface CategoryInfo {
   label: string;
-  emoji: string;
+  /** 아이콘 이미지 (public/icons, Flaticon 무료 아이콘 128px 축소본. 출처는 lib/credits.ts) */
+  icon: string;
   /** 핀 머리 색 (파스텔) */
   color: string;
 }
 
 export const CATEGORIES: Record<CategoryId, CategoryInfo> = {
-  cafe: { label: "카페", emoji: "🍰", color: "#FFB8CF" },
-  food: { label: "맛집", emoji: "🍜", color: "#FFC98F" },
-  shop: { label: "소품샵", emoji: "🧸", color: "#D2BCFF" },
-  // 임시 아이콘 (나중에 디자인 확정 시 교체)
-  attraction: { label: "명소", emoji: "🏯", color: "#FFE48A" },
-  market: { label: "야시장", emoji: "🏮", color: "#FF9E8A" },
-  parking: { label: "주차장", emoji: "🅿️", color: "#A9CBFF" },
-  spot: { label: "기타", emoji: "📸", color: "#9EE3C8" },
+  cafe: { label: "카페", icon: "/icons/cafe.png", color: "#FFB8CF" },
+  food: { label: "맛집", icon: "/icons/food.png", color: "#FFC98F" },
+  shop: { label: "소품샵", icon: "/icons/shop.png", color: "#D2BCFF" },
+  attraction: { label: "명소", icon: "/icons/attraction.png", color: "#FFE48A" },
+  market: { label: "야시장", icon: "/icons/market.png", color: "#FF9E8A" },
+  parking: { label: "주차장", icon: "/icons/parking.png", color: "#A9CBFF" },
+  spot: { label: "기타", icon: "/icons/spot.png", color: "#9EE3C8" },
 };
 
 export const CATEGORY_ORDER: CategoryId[] = ["cafe", "food", "shop", "attraction", "market", "parking", "spot"];

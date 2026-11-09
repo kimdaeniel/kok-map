@@ -39,7 +39,7 @@ export function pinHtml({ category, status, name, order, selected, draft }: PinO
       : "";
   return `<div class="${cls}" style="--pin-color:${cat.color}">
   <div class="pin__needle"></div>
-  <div class="pin__head"><span class="pin__emoji">${cat.emoji}</span></div>
+  <div class="pin__head"><img class="pin__icon" src="${cat.icon}" alt="" draggable="false" /></div>
   ${badge}
   <div class="pin__label">${escapeHtml(name)}</div>
 </div>`;

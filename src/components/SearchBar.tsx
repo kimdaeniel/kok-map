@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { SearchItem } from "@/app/api/search/route";
 import { CATEGORIES, guessCategory } from "@/lib/categories";
+import CategoryIcon from "./CategoryIcon";
 
 interface Props {
   onPick: (item: SearchItem) => void;
@@ -82,7 +83,8 @@ export default function SearchBar({ onPick, onFocus, getCenter }: Props) {
       {items && items.length > 0 && (
         <ul className="search__results">
           {items.map((it, i) => {
-            const cat = CATEGORIES[guessCategory(it.naverCategory)];
+            const catId = guessCategory(it.naverCategory);
+            const cat = CATEGORIES[catId];
             return (
               <li key={`${it.name}-${i}`}>
                 <button
@@ -92,7 +94,7 @@ export default function SearchBar({ onPick, onFocus, getCenter }: Props) {
                   }}
                 >
                   <span className="search__emoji" style={{ background: cat.color }}>
-                    {cat.emoji}
+                    <CategoryIcon category={catId} size={24} />
                   </span>
                   <span className="search__text">
                     <b>{it.name}</b>

@@ -7,6 +7,7 @@ import SearchBar from "@/components/SearchBar";
 import FilterBar, { type Filter } from "@/components/FilterBar";
 import { DraftSheet, PlaceSheet } from "@/components/PlaceSheet";
 import RoutePanel from "@/components/RoutePanel";
+import Credits from "@/components/Credits";
 import { guessCategory } from "@/lib/categories";
 import { ME_ANCHOR, PIN_ANCHOR, PIN_SIZE, meHtml, pinHtml } from "@/lib/pin";
 import { DEFAULT_CENTER } from "@/lib/sample";
@@ -25,6 +26,7 @@ export default function Home() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [addMode, setAddMode] = useState(false);
   const [routeOpen, setRouteOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>({ categories: [], hideVisited: false });
 
   const selected = store.places.find((p) => p.id === selectedId) ?? null;
@@ -147,7 +149,18 @@ export default function Home() {
         <FilterBar filter={filter} counts={counts} onChange={setFilter} />
       </header>
 
-      {addMode && <div className="banner">📍 핀을 꽂을 위치를 지도에서 탭하세요</div>}
+      {addMode && (
+        <div className="banner">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 작은 정적 아이콘 */}
+          <img src="/icons/location-pin.png" alt="" />
+          핀을 꽂을 위치를 지도에서 탭하세요
+        </div>
+      )}
+
+      <button className="info-btn" onClick={() => setCreditsOpen(true)} aria-label="아이콘 출처">
+        i
+      </button>
+      {creditsOpen && <Credits onClose={() => setCreditsOpen(false)} />}
 
       <div className="fabs">
         <button
@@ -160,13 +173,8 @@ export default function Home() {
               <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
           ) : (
-            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M12 2.5c-3.9 0-7 3-7 6.9 0 5 7 12.1 7 12.1s7-7.1 7-12.1c0-3.9-3.1-6.9-7-6.9z"
-                fill="var(--accent)"
-              />
-              <circle cx="12" cy="9.4" r="2.6" fill="#fff" />
-            </svg>
+            // eslint-disable-next-line @next/next/no-img-element -- 작은 정적 아이콘
+            <img src="/icons/thumbtack.png" alt="" width={28} height={28} draggable={false} />
           )}
         </button>
         <button className="fab" onClick={goToMe} aria-label="내 위치">

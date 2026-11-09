@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CATEGORIES, CATEGORY_ORDER } from "@/lib/categories";
+import CategoryIcon from "./CategoryIcon";
 import { naverAppPlaceUrl, naverAppWalkUrl, naverWebPlaceUrl, openNaver } from "@/lib/naver-links";
 import type { CategoryId, Place, PlaceDraft } from "@/lib/types";
 
@@ -15,7 +16,7 @@ function CategoryPicker({ value, onChange }: { value: CategoryId; onChange: (c: 
           style={{ "--chip-color": CATEGORIES[c].color } as React.CSSProperties}
           onClick={() => onChange(c)}
         >
-          <span>{CATEGORIES[c].emoji}</span>
+          <CategoryIcon category={c} size={26} />
           {CATEGORIES[c].label}
         </button>
       ))}
@@ -126,7 +127,7 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
       </button>
       <button className="sheet__kicker sheet__kicker--btn" onClick={() => setEditingCat((v) => !v)}>
         <span className="sheet__badge" style={{ background: cat.color }}>
-          {cat.emoji}
+          <CategoryIcon category={place.category} size={20} />
         </span>
         {cat.label}
         {visited && <span className="sheet__visited">✓ 다녀옴</span>}
