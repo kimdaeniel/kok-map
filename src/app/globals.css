@@ -471,15 +471,20 @@ button:disabled {
   gap: 10px;
 }
 
+/* 지도 앱에서 흔히 쓰는 흰 사각 버튼 모양 */
 .fab {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--card);
-  box-shadow: var(--shadow);
-  font-size: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   display: grid;
   place-items: center;
+}
+
+.fab:active {
+  background: #f2f2f2;
 }
 
 .fab--on {

@@ -48,7 +48,7 @@ export default function Home() {
   }, [store.loaded, store.places]);
 
   const counts = useMemo(() => {
-    const c: Record<CategoryId, number> = { cafe: 0, food: 0, shop: 0, spot: 0 };
+    const c: Record<CategoryId, number> = { cafe: 0, food: 0, shop: 0, attraction: 0, market: 0, parking: 0, spot: 0 };
     store.places.forEach((p) => c[p.category]++);
     return c;
   }, [store.places]);
@@ -121,12 +121,6 @@ export default function Home() {
     else alert(me.error ?? "위치를 찾는 중이에요. 잠시 후 다시 눌러주세요.");
   }
 
-  function fitAll() {
-    const pts: LatLng[] = store.places.map((p) => [p.lat, p.lng]);
-    if (me.pos) pts.push(me.pos);
-    mapRef.current?.fitTo(pts);
-  }
-
   const showEmpty = store.loaded && store.places.length === 0 && !draft;
 
   return (
@@ -155,14 +149,31 @@ export default function Home() {
       {addMode && <div className="banner">📍 핀을 꽂을 위치를 지도에서 탭하세요</div>}
 
       <div className="fabs">
-        <button className={`fab ${addMode ? "fab--on" : ""}`} onClick={() => setAddMode((v) => !v)} aria-label="직접 추가">
-          {addMode ? "✕" : "＋"}
-        </button>
-        <button className="fab" onClick={fitAll} aria-label="전체 보기">
-          🗺️
+        <button
+          className={`fab ${addMode ? "fab--on" : ""}`}
+          onClick={() => setAddMode((v) => !v)}
+          aria-label={addMode ? "핀 꽂기 취소" : "지도에 핀 꽂기"}
+        >
+          {addMode ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 2.5c-3.9 0-7 3-7 6.9 0 5 7 12.1 7 12.1s7-7.1 7-12.1c0-3.9-3.1-6.9-7-6.9z"
+                fill="var(--accent)"
+              />
+              <circle cx="12" cy="9.4" r="2.6" fill="#fff" />
+            </svg>
+          )}
         </button>
         <button className="fab" onClick={goToMe} aria-label="내 위치">
-          🎯
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#222" strokeWidth="1.6" aria-hidden="true">
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="1.6" fill="#222" stroke="none" />
+            <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" strokeLinecap="round" />
+          </svg>
         </button>
       </div>
 

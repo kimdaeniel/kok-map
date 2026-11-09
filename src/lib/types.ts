@@ -1,4 +1,4 @@
-export type CategoryId = "cafe" | "food" | "shop" | "spot";
+export type CategoryId = "cafe" | "food" | "shop" | "attraction" | "market" | "parking" | "spot";
 export type PlaceStatus = "want" | "visited";
 
 export interface Place {
