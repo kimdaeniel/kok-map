@@ -359,6 +359,10 @@ button:disabled {
   border-radius: var(--radius);
   background: var(--card);
   box-shadow: var(--shadow);
+  /* 결과가 많아도(최대 15개) 화면 안에서 스크롤되도록 */
+  max-height: min(60dvh, 520px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .search__results button {

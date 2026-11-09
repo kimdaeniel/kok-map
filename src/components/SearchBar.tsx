@@ -8,9 +8,11 @@ interface Props {
   onPick: (item: SearchItem) => void;
   /** 검색창을 누를 때 (휴대폰 키보드가 올라올 때 아래 카드가 화면을 가리지 않도록 닫는 용도) */
   onFocus?: () => void;
+  /** 지금 보고 있는 지도 가운데 좌표. 이 근처 가게를 먼저 찾는다. */
+  getCenter?: () => [number, number] | null;
 }
 
-export default function SearchBar({ onPick, onFocus }: Props) {
+export default function SearchBar({ onPick, onFocus, getCenter }: Props) {
   const [q, setQ] = useState("");
   const [items, setItems] = useState<SearchItem[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,13 @@ export default function SearchBar({ onPick, onFocus }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const params = new URLSearchParams({ q });
+      const center = getCenter?.();
+      if (center) {
+        params.set("lat", center[0].toFixed(6));
+        params.set("lng", center[1].toFixed(6));
+      }
+      const res = await fetch(`/api/search?${params}`);
       const data = await res.json();
       if (!res.ok) {
         setItems(null);

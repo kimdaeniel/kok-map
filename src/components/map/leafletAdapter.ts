@@ -56,6 +56,10 @@ export async function createLeafletMap(el: HTMLElement, opts: CreateMapOptions):
       map.fitBounds(L.latLngBounds(points), { paddingTopLeft: [40, 140], paddingBottomRight: [40, 180] });
     },
     getZoom: () => map.getZoom(),
+    getCenter: () => {
+      const c = map.getCenter();
+      return [c.lat, c.lng] as LatLng;
+    },
     destroy: () => void map.remove(),
   };
 }

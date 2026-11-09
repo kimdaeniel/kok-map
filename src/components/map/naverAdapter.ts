@@ -113,6 +113,10 @@ export async function createNaverMap(
       map.fitBounds(bounds, { top: 140, right: 40, bottom: 180, left: 40 });
     },
     getZoom: () => map.getZoom(),
+    getCenter: () => {
+      const c = map.getCenter();
+      return [c.lat(), c.lng()] as LatLng;
+    },
     destroy() {
       markers.forEach((m) => m.setMap(null));
       polyline?.setMap(null);

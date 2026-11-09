@@ -19,6 +19,8 @@ export interface MapAdapter {
   setCenter(pos: LatLng, zoom?: number, offsetY?: number): void;
   fitTo(points: LatLng[]): void;
   getZoom(): number;
+  /** 지금 화면 가운데 좌표 (검색을 이 근처 위주로 하기 위해) */
+  getCenter(): LatLng;
   destroy(): void;
 }
 

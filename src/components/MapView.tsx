@@ -12,6 +12,7 @@ export interface MapHandle {
   /** 하단 카드 위쪽에 보이도록 이동 */
   focusOn(pos: LatLng, zoom?: number): void;
   fitTo(points: LatLng[]): void;
+  getCenter(): LatLng | null;
 }
 
 interface Props {
@@ -93,6 +94,7 @@ export default function MapView({ ref, center, markers, route, onMapClick }: Pro
       centerOn: (pos, z) => adapterRef.current?.setCenter(pos, z),
       focusOn: (pos, z) => adapterRef.current?.setCenter(pos, z, Math.round(window.innerHeight * 0.22)),
       fitTo: (points) => adapterRef.current?.fitTo(points),
+      getCenter: () => adapterRef.current?.getCenter() ?? null,
     }),
     [],
   );
