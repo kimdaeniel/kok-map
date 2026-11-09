@@ -49,13 +49,17 @@ npm run dev                  # http://localhost:3000
 > 2025년 7월부터 예전 "AI·NAVER API" 지도 상품은 무료 이용량이 없어졌어요. 반드시 새 **Maps** 상품으로 등록하세요.
 > 인증에 실패하면 화면 상단에 안내가 뜨고 임시 지도로 바뀌어요.
 
-### 2. 네이버 검색 API → `NAVER_SEARCH_CLIENT_ID`, `NAVER_SEARCH_CLIENT_SECRET`
+### 2. 가게 검색 (NAVER API HUB) → `NAVER_API_HUB_KEY_ID`, `NAVER_API_HUB_KEY`
 
-1. [developers.naver.com](https://developers.naver.com) → Application → 애플리케이션 등록
-2. 사용 API: **검색** 선택, 환경: WEB (`http://localhost:3000`)
-3. Client ID / Secret을 `.env.local`에 입력 (하루 25,000건 무료)
+네이버 검색 API는 **네이버 클라우드 플랫폼의 NAVER API HUB**로 옮겨졌어요.
+(2026.7.31부터 네이버 개발자센터에서는 검색 API를 새로 신청할 수 없어요.)
+
+1. 지도 키를 받은 같은 [네이버 클라우드 플랫폼](https://www.ncloud.com) 콘솔에서 **NAVER API HUB** 서비스로 이동
+2. 앱(Application) 등록 → **검색 > 지역** API 사용 설정
+3. 발급된 Client ID / Client Secret을 `.env.local`에 입력
 
 > Secret은 서버(`/api/search`)에서만 쓰여서 브라우저에 노출되지 않아요. 절대 커밋하지 마세요.
+> 예전 개발자센터 검색 키가 이미 있다면 `NAVER_SEARCH_CLIENT_ID/SECRET`에 넣어도 동작해요 (2027.6.30까지).
 
 ## 구조
 
