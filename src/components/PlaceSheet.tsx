@@ -16,7 +16,7 @@ function CategoryPicker({ value, onChange }: { value: CategoryId; onChange: (c: 
           style={{ "--chip-color": CATEGORIES[c].color } as React.CSSProperties}
           onClick={() => onChange(c)}
         >
-          <CategoryIcon category={c} size={26} />
+          <CategoryIcon category={c} size={24} />
           {CATEGORIES[c].label}
         </button>
       ))}
@@ -67,9 +67,11 @@ export function DraftSheet({ draft, manual, onSave, onClose }: DraftProps) {
 
   return (
     <section className="sheet">
-      <button className="sheet__close" onClick={onClose} aria-label="닫기">
-        ✕
-      </button>
+      <div className="sheet__actions">
+        <button className="sheet__icon-btn" onClick={onClose} aria-label="닫기">
+          ✕
+        </button>
+      </div>
       <p className="sheet__kicker">새 핀 저장하기</p>
       {manual ? (
         <input
@@ -90,7 +92,7 @@ export function DraftSheet({ draft, manual, onSave, onClose }: DraftProps) {
         value={memo}
         onChange={(e) => setMemo(e.target.value)}
         placeholder="메모 (예: 딸기케이크 꼭 먹기)"
-        rows={2}
+        rows={1}
       />
       <button
         className="btn btn--primary btn--block"
@@ -119,21 +121,55 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
   const cat = CATEGORIES[place.category];
   const visited = place.status === "visited";
   const [editingCat, setEditingCat] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <section className={`sheet ${visited ? "sheet--visited" : ""}`}>
-      <button className="sheet__close" onClick={onClose} aria-label="닫기">
-        ✕
-      </button>
-      <button className="sheet__kicker sheet__kicker--btn" onClick={() => setEditingCat((v) => !v)}>
-        <span className="sheet__badge" style={{ background: cat.color }}>
-          <CategoryIcon category={place.category} size={20} />
+      <div className="sheet__actions">
+        <button className="sheet__icon-btn" onClick={() => setMenuOpen((v) => !v)} aria-label="핀 설정">
+          ⋯
+        </button>
+        <button className="sheet__icon-btn" onClick={onClose} aria-label="닫기">
+          ✕
+        </button>
+        {menuOpen && (
+          <div className="sheet__menu" role="menu">
+            <button
+              role="menuitem"
+              onClick={() => {
+                setEditingCat(true);
+                setMenuOpen(false);
+              }}
+            >
+              카테고리 바꾸기
+            </button>
+            <button
+              role="menuitem"
+              className="sheet__menu--danger"
+              onClick={() => {
+                setMenuOpen(false);
+                if (confirm(`'${place.name}' 핀을 삭제할까요?`)) onRemove();
+              }}
+            >
+              핀 삭제
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 아이콘이 종류를 알려주므로 "카페/명소" 같은 글자 없이 아이콘 + 이름 한 줄 */}
+      <div className="sheet__head">
+        <span className="sheet__badge" style={{ background: cat.color }} title={cat.label}>
+          <CategoryIcon category={place.category} size={22} />
         </span>
-        {cat.label}
-        {visited && <span className="sheet__visited">✓ 다녀옴</span>}
-        {routeIndex >= 0 && <span className="sheet__route">오늘 루트 {routeIndex + 1}번</span>}
-        <small>바꾸기</small>
-      </button>
+        <h2 className="sheet__title">{place.name}</h2>
+      </div>
+      {(visited || routeIndex >= 0) && (
+        <div className="sheet__tags">
+          {visited && <span className="sheet__visited">✓ 다녀옴</span>}
+          {routeIndex >= 0 && <span className="sheet__route">오늘 루트 {routeIndex + 1}번</span>}
+        </div>
+      )}
       {editingCat && (
         <CategoryPicker
           value={place.category}
@@ -143,7 +179,6 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
           }}
         />
       )}
-      <h2 className="sheet__title">{place.name}</h2>
       <Info p={place} />
       <textarea
         className="sheet__memo"
@@ -151,7 +186,7 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
         key={place.id}
         onBlur={(e) => e.target.value !== place.memo && onUpdate({ memo: e.target.value })}
         placeholder="메모를 남겨보세요"
-        rows={2}
+        rows={1}
       />
 
       <div className="sheet__row">
@@ -164,18 +199,12 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
       </div>
       <div className="sheet__row">
         <button className="btn btn--naver" onClick={() => openNaver(naverAppPlaceUrl(place), naverWebPlaceUrl(place))}>
-          <b>N</b> 네이버 지도에서 보기
+          <b>N</b> 네이버 지도
         </button>
         <button className="btn btn--naver" onClick={() => openNaver(naverAppWalkUrl(place), naverWebPlaceUrl(place))}>
           🚶 길찾기
         </button>
       </div>
-      <button
-        className="btn btn--ghost btn--block"
-        onClick={() => confirm(`'${place.name}' 핀을 삭제할까요?`) && onRemove()}
-      >
-        🗑 핀 삭제
-      </button>
     </section>
   );
 }
