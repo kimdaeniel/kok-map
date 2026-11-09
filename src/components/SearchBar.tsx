@@ -6,9 +6,11 @@ import { CATEGORIES, guessCategory } from "@/lib/categories";
 
 interface Props {
   onPick: (item: SearchItem) => void;
+  /** 검색창을 누를 때 (휴대폰 키보드가 올라올 때 아래 카드가 화면을 가리지 않도록 닫는 용도) */
+  onFocus?: () => void;
 }
 
-export default function SearchBar({ onPick }: Props) {
+export default function SearchBar({ onPick, onFocus }: Props) {
   const [q, setQ] = useState("");
   const [items, setItems] = useState<SearchItem[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,6 +55,7 @@ export default function SearchBar({ onPick }: Props) {
           className="search__input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onFocus={onFocus}
           placeholder="가게 검색 (예: 전주 한옥마을 카페)"
           enterKeyHint="search"
         />

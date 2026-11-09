@@ -141,6 +141,13 @@ export default function Home() {
             setDraft({ ...it, category: guessCategory(it.naverCategory), manual: false });
             mapRef.current?.focusOn([it.lat, it.lng], 17);
           }}
+          onFocus={() => {
+            // 키보드가 올라오면 아래 카드가 화면을 가리므로 열려 있던 핀 정보는 닫는다.
+            // 직접 꽂는 중인 핀(이름/메모 입력 중)은 날아가지 않도록 그대로 둔다.
+            setSelectedId(null);
+            setRouteOpen(false);
+            setDraft((d) => (d && !d.manual ? null : d));
+          }}
         />
         <FilterBar filter={filter} counts={counts} onChange={setFilter} />
       </header>
