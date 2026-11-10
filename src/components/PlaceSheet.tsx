@@ -4,7 +4,8 @@ import { useState } from "react";
 import { CATEGORIES, CATEGORY_ORDER } from "@/lib/categories";
 import CategoryIcon from "./CategoryIcon";
 import { naverAppPlaceUrl, naverAppWalkUrl, naverWebPlaceUrl, openNaver } from "@/lib/naver-links";
-import type { CategoryId, Place, PlaceDraft } from "@/lib/types";
+import { tripDates } from "@/lib/trips";
+import type { CategoryId, Place, PlaceDraft, Trip } from "@/lib/types";
 
 function CategoryPicker({ value, onChange }: { value: CategoryId; onChange: (c: CategoryId) => void }) {
   return (
@@ -56,14 +57,20 @@ function Info({ p }: { p: Pick<Place, "roadAddress" | "address" | "telephone" | 
 interface DraftProps {
   draft: PlaceDraft & { category: CategoryId };
   manual: boolean;
-  onSave: (draft: PlaceDraft, category: CategoryId, memo: string) => void;
+  trips: Trip[];
+  /** 기본으로 저장할 여행 (지금 보는 여행) */
+  defaultTripId: string;
+  /** 여행이 여러 개이거나 전체 보기 중이면 어느 여행에 저장할지 고르게 한다 */
+  askTrip: boolean;
+  onSave: (draft: PlaceDraft, category: CategoryId, memo: string, tripId: string) => void;
   onClose: () => void;
 }
 
-export function DraftSheet({ draft, manual, onSave, onClose }: DraftProps) {
+export function DraftSheet({ draft, manual, trips, defaultTripId, askTrip, onSave, onClose }: DraftProps) {
   const [name, setName] = useState(draft.name);
   const [category, setCategory] = useState(draft.category);
   const [memo, setMemo] = useState("");
+  const [tripId, setTripId] = useState(defaultTripId);
 
   return (
     <section className="sheet">
@@ -94,10 +101,23 @@ export function DraftSheet({ draft, manual, onSave, onClose }: DraftProps) {
         placeholder="메모 (예: 딸기케이크 꼭 먹기)"
         rows={1}
       />
+      {askTrip && (
+        <label className="sheet__trip">
+          🧳 저장할 여행
+          <select value={tripId} onChange={(e) => setTripId(e.target.value)}>
+            {trips.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {tripDates(t) ? ` (${tripDates(t)})` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <button
         className="btn btn--primary btn--block"
         disabled={!name.trim()}
-        onClick={() => onSave({ ...draft, name: name.trim() }, category, memo)}
+        onClick={() => onSave({ ...draft, name: name.trim() }, category, memo, tripId)}
       >
         📍 핀 꽂기
       </button>
@@ -115,13 +135,35 @@ interface PlaceProps {
   onToggleRoute: () => void;
   onRemove: () => void;
   onClose: () => void;
+  /** 이 핀을 넣을 수 있는 다른 여행들 */
+  otherTrips: Trip[];
+  onCopyToTrip: (tripId: string) => void;
+  /** 전체 보기 중이면 어느 여행 핀인지 보여준다 */
+  tripName?: string;
 }
 
-export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onToggleRoute, onRemove, onClose }: PlaceProps) {
+export function PlaceSheet({
+  place,
+  routeIndex,
+  onUpdate,
+  onToggleVisited,
+  onToggleRoute,
+  onRemove,
+  onClose,
+  otherTrips,
+  onCopyToTrip,
+  tripName,
+}: PlaceProps) {
   const cat = CATEGORIES[place.category];
   const visited = place.status === "visited";
   const [editingCat, setEditingCat] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menu, setMenu] = useState<"closed" | "main" | "copy">("closed");
+  const menuOpen = menu !== "closed";
+  const setMenuOpen = (open: boolean | ((v: boolean) => boolean)) => {
+    const next = typeof open === "function" ? open(menuOpen) : open;
+    setMenu(next ? "main" : "closed");
+  };
+  const [note, setNote] = useState<string | null>(null);
 
   return (
     <section className={`sheet ${visited ? "sheet--visited" : ""}`}>
@@ -132,7 +174,26 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
         <button className="sheet__icon-btn" onClick={onClose} aria-label="닫기">
           ✕
         </button>
-        {menuOpen && (
+        {menu === "copy" && (
+          <div className="sheet__menu" role="menu">
+            <p className="sheet__menu-title">어느 여행에 추가할까요?</p>
+            {otherTrips.map((t) => (
+              <button
+                key={t.id}
+                role="menuitem"
+                onClick={() => {
+                  onCopyToTrip(t.id);
+                  setMenu("closed");
+                  setNote(`${t.name}에도 추가했어요`);
+                }}
+              >
+                {t.name}
+                {tripDates(t) ? ` · ${tripDates(t)}` : ""}
+              </button>
+            ))}
+          </div>
+        )}
+        {menu === "main" && (
           <div className="sheet__menu" role="menu">
             <button
               role="menuitem"
@@ -143,6 +204,11 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
             >
               카테고리 바꾸기
             </button>
+            {otherTrips.length > 0 && (
+              <button role="menuitem" onClick={() => setMenu("copy")}>
+                다른 여행에도 추가
+              </button>
+            )}
             <button
               role="menuitem"
               className="sheet__menu--danger"
@@ -164,10 +230,12 @@ export function PlaceSheet({ place, routeIndex, onUpdate, onToggleVisited, onTog
         </span>
         <h2 className="sheet__title">{place.name}</h2>
       </div>
-      {(visited || routeIndex >= 0) && (
+      {(visited || routeIndex >= 0 || tripName || note) && (
         <div className="sheet__tags">
+          {tripName && <span className="sheet__visited">🧳 {tripName}</span>}
           {visited && <span className="sheet__visited">✓ 다녀옴</span>}
-          {routeIndex >= 0 && <span className="sheet__route">오늘 루트 {routeIndex + 1}번</span>}
+          {routeIndex >= 0 && <span className="sheet__route">루트 {routeIndex + 1}번</span>}
+          {note && <span className="sheet__note">✓ {note}</span>}
         </div>
       )}
       {editingCat && (

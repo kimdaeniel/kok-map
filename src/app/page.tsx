@@ -8,6 +8,7 @@ import FilterBar, { type Filter } from "@/components/FilterBar";
 import { DraftSheet, PlaceSheet } from "@/components/PlaceSheet";
 import RoutePanel from "@/components/RoutePanel";
 import Credits from "@/components/Credits";
+import TripPicker from "@/components/TripPicker";
 import { guessCategory } from "@/lib/categories";
 import { ME_ANCHOR, PIN_ANCHOR, PIN_SIZE, meHtml, pinHtml } from "@/lib/pin";
 import { DEFAULT_CENTER } from "@/lib/sample";
@@ -39,15 +40,19 @@ export default function Home() {
     if (store.places.length === 0) mapRef.current?.centerOn(me.pos, 16);
   }, [me.pos, store.loaded, store.places.length]);
 
-  // 저장된 핀이 있으면 처음 한 번 전체가 보이게
-  const fittedOnLoad = useRef(false);
+  // 처음 열 때와 여행을 바꿀 때, 그 여행의 핀이 다 보이게 지도를 맞춘다
+  const viewKey = store.currentTrip?.id ?? "all";
+  const fittedView = useRef<string | null>(null);
   useEffect(() => {
-    if (!store.loaded || fittedOnLoad.current) return;
-    fittedOnLoad.current = true;
+    if (!store.loaded || fittedView.current === viewKey) return;
+    fittedView.current = viewKey;
+    setSelectedId(null);
+    setDraft(null);
+    setRouteOpen(false);
     if (store.places.length > 0) {
       setTimeout(() => mapRef.current?.fitTo(store.places.map((p) => [p.lat, p.lng])), 300);
     }
-  }, [store.loaded, store.places]);
+  }, [store.loaded, store.places, viewKey]);
 
   const counts = useMemo(() => {
     const c: Record<CategoryId, number> = { cafe: 0, food: 0, shop: 0, attraction: 0, market: 0, parking: 0, spot: 0 };
@@ -60,6 +65,7 @@ export default function Home() {
     [store.route, store.places],
   );
 
+  const routeOf = store.routeOf;
   const markers = useMemo<MarkerSpec[]>(() => {
     const visible = store.places.filter(
       (p) =>
@@ -68,7 +74,7 @@ export default function Home() {
           !(filter.hideVisited && p.status === "visited")),
     );
     const specs: MarkerSpec[] = visible.map((p) => {
-      const order = store.route.indexOf(p.id) + 1 || undefined;
+      const order = routeOf(p.id).indexOf(p.id) + 1 || undefined;
       const isSel = p.id === selectedId;
       return {
         id: p.id,
@@ -101,7 +107,7 @@ export default function Home() {
       specs.push({ id: "__me", lat: me.pos[0], lng: me.pos[1], html: meHtml(), size: [24, 24], anchor: ME_ANCHOR, zIndex: 10 });
     }
     return specs;
-  }, [store.places, store.route, selectedId, filter, draft, me.pos]);
+  }, [store.places, routeOf, selectedId, filter, draft, me.pos]);
 
   const routePath = useMemo<LatLng[]>(() => routeStops.map((p) => [p.lat, p.lng]), [routeStops]);
 
@@ -130,6 +136,18 @@ export default function Home() {
       <MapView ref={mapRef} center={DEFAULT_CENTER} markers={markers} route={routePath} onMapClick={handleMapClick} />
 
       <header className="top">
+        <div className="trip-row">
+          <TripPicker
+            trips={store.trips}
+            currentTrip={store.currentTrip}
+            counts={store.tripCounts}
+            totalCount={Object.values(store.tripCounts).reduce((a, b) => a + b, 0)}
+            onSelect={store.selectTrip}
+            onCreate={store.createTrip}
+            onUpdate={store.updateTrip}
+            onDelete={store.deleteTrip}
+          />
+        </div>
         <SearchBar
           onPick={(it) => {
             setSelectedId(null);
@@ -192,22 +210,31 @@ export default function Home() {
             key={`${draft.lat},${draft.lng}`}
             draft={draft}
             manual={draft.manual}
+            trips={store.trips}
+            defaultTripId={store.currentTrip?.id ?? store.trips[0].id}
+            askTrip={store.isAll}
             onClose={() => setDraft(null)}
-            onSave={(d, category, memo) => {
-              const id = store.addPlace(d, category, memo);
+            onSave={(d, category, memo, tripId) => {
+              const id = store.addPlace(d, category, memo, tripId);
               setDraft(null);
               setSelectedId(id);
             }}
           />
         ) : selected ? (
           <PlaceSheet
+            key={selected.id}
             place={selected}
-            routeIndex={store.route.indexOf(selected.id)}
+            routeIndex={store.routeOf(selected.id).indexOf(selected.id)}
+            otherTrips={store.trips.filter((t) => t.id !== selected.tripId)}
+            onCopyToTrip={(tripId) => store.copyPlaceToTrip(selected.id, tripId)}
+            tripName={store.isAll ? store.trips.find((t) => t.id === selected.tripId)?.name : undefined}
             onClose={() => setSelectedId(null)}
             onUpdate={(patch) => store.updatePlace(selected.id, patch)}
             onToggleVisited={() => store.toggleVisited(selected.id)}
             onToggleRoute={() =>
-              store.route.includes(selected.id) ? store.removeFromRoute(selected.id) : store.addToRoute(selected.id)
+              store.routeOf(selected.id).includes(selected.id)
+                ? store.removeFromRoute(selected.id)
+                : store.addToRoute(selected.id)
             }
             onRemove={() => {
               store.removePlace(selected.id);
@@ -217,16 +244,18 @@ export default function Home() {
         ) : showEmpty ? (
           <section className="sheet empty">
             <p className="empty__pins">🍰 🍜 🧸 📸</p>
-            <h2 className="sheet__title">아직 꽂은 핀이 없어요</h2>
+            <h2 className="sheet__title">
+              {store.currentTrip ? `${store.currentTrip.name}에 아직 꽂은 핀이 없어요` : "아직 꽂은 핀이 없어요"}
+            </h2>
             <p>위에서 가게를 검색하거나, ＋ 버튼을 누르고 지도를 탭해서 핀을 꽂아보세요.</p>
             <button className="btn btn--primary btn--block" onClick={() => {
-                fittedOnLoad.current = false;
+                fittedView.current = null;
                 store.loadSample();
               }}>
               샘플 핀 구경하기
             </button>
           </section>
-        ) : (
+        ) : store.isAll ? null : (
           <RoutePanel
             stops={routeStops}
             open={routeOpen}

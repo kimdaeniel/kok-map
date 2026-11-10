@@ -1,15 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { CategoryId, Place, PlaceDraft } from "./types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CategoryId, Place, PlaceDraft, Trip, TripView } from "./types";
 import { SAMPLE_PLACES } from "./sample";
 
-const STORAGE_KEY = "kok-map:v1";
+const STORAGE_KEY = "kok-map:v2";
+/** 여행 기능 이전 저장 형식. 처음 열 때 한 번 "내 여행"으로 옮긴다 */
+const LEGACY_KEY = "kok-map:v1";
 
 interface StoredData {
+  version: 2;
+  trips: Trip[];
+  current: TripView;
   places: Place[];
-  /** 오늘 루트: 장소 id를 방문 순서대로 */
-  route: string[];
+  /** 여행별 루트: 여행 id → 장소 id 목록(방문 순서) */
+  routes: Record<string, string[]>;
 }
 
 function newId(): string {
@@ -18,21 +23,50 @@ function newId(): string {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function newTrip(name: string, startDate?: string, endDate?: string): Trip {
+  return { id: newId(), name, startDate: startDate || undefined, endDate: endDate || undefined, createdAt: Date.now() };
+}
+
+function emptyData(): StoredData {
+  const t = newTrip("내 여행");
+  return { version: 2, trips: [t], current: t.id, places: [], routes: { [t.id]: [] } };
+}
+
+/** placeId 핀이 속한 여행의 루트를 fn으로 바꾼다 */
+function editRouteOf(d: StoredData, placeId: string, fn: (r: string[]) => string[]): StoredData {
+  const tripId = d.places.find((p) => p.id === placeId)?.tripId;
+  if (!tripId) return d;
+  return { ...d, routes: { ...d.routes, [tripId]: fn(d.routes[tripId] ?? []) } };
+}
+
 function load(): StoredData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const data = JSON.parse(raw) as StoredData;
-      if (Array.isArray(data.places) && Array.isArray(data.route)) return data;
+      const d = JSON.parse(raw) as StoredData;
+      if (d.version === 2 && Array.isArray(d.trips) && d.trips.length > 0 && Array.isArray(d.places)) return d;
+    }
+    // 예전 형식(여행 없음) → 기존 핀과 루트를 "내 여행"으로 옮긴다
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const old = JSON.parse(legacy) as { places?: Omit<Place, "tripId">[]; route?: string[] };
+      const t = newTrip("내 여행");
+      return {
+        version: 2,
+        trips: [t],
+        current: t.id,
+        places: (old.places ?? []).map((p) => ({ ...p, tripId: t.id })),
+        routes: { [t.id]: old.route ?? [] },
+      };
     }
   } catch {
     // 저장소를 못 쓰는 환경(사생활 보호 모드 등)이면 빈 상태로 시작
   }
-  return { places: [], route: [] };
+  return emptyData();
 }
 
 export function usePlaces() {
-  const [data, setData] = useState<StoredData>({ places: [], route: [] });
+  const [data, setData] = useState<StoredData>(emptyData);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -49,11 +83,77 @@ export function usePlaces() {
     }
   }, [data, loaded]);
 
-  const addPlace = useCallback((draft: PlaceDraft, category: CategoryId, memo = ""): string => {
-    const id = newId();
-    const place: Place = { ...draft, id, category, memo, status: "want", createdAt: Date.now() };
-    setData((d) => ({ ...d, places: [...d.places, place] }));
-    return id;
+  const isAll = data.current === "all";
+  const currentTrip = isAll ? null : (data.trips.find((t) => t.id === data.current) ?? data.trips[0]);
+
+  /** 지금 지도에 보일 핀 (지금 여행, 또는 전체 보기면 모두) */
+  const places = useMemo(
+    () => (currentTrip ? data.places.filter((p) => p.tripId === currentTrip.id) : data.places),
+    [data.places, currentTrip],
+  );
+  /** 지금 여행의 루트 (전체 보기에서는 비어 있음) */
+  const route = useMemo(() => (currentTrip ? (data.routes[currentTrip.id] ?? []) : []), [data.routes, currentTrip]);
+
+  const tripCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    data.places.forEach((p) => (c[p.tripId] = (c[p.tripId] ?? 0) + 1));
+    return c;
+  }, [data.places]);
+
+  /* ---------- 여행 ---------- */
+
+  const selectTrip = useCallback((view: TripView) => setData((d) => ({ ...d, current: view })), []);
+
+  const createTrip = useCallback((name: string, startDate?: string, endDate?: string) => {
+    const t = newTrip(name, startDate, endDate);
+    setData((d) => ({ ...d, trips: [...d.trips, t], current: t.id, routes: { ...d.routes, [t.id]: [] } }));
+    return t.id;
+  }, []);
+
+  const updateTrip = useCallback((id: string, patch: Partial<Omit<Trip, "id" | "createdAt">>) => {
+    setData((d) => ({ ...d, trips: d.trips.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
+  }, []);
+
+  /** 여행과 그 여행의 핀을 모두 지운다. 마지막 여행이면 빈 "내 여행"을 새로 만든다 */
+  const deleteTrip = useCallback((id: string) => {
+    setData((d) => {
+      const trips = d.trips.filter((t) => t.id !== id);
+      const places = d.places.filter((p) => p.tripId !== id);
+      const routes = { ...d.routes };
+      delete routes[id];
+      if (trips.length === 0) {
+        const t = newTrip("내 여행");
+        return { ...d, trips: [t], current: t.id, places, routes: { ...routes, [t.id]: [] } };
+      }
+      const current = d.current === id ? trips[0].id : d.current;
+      return { ...d, trips, current, places, routes };
+    });
+  }, []);
+
+  /* ---------- 핀 ---------- */
+
+  /** tripId를 안 주면 지금 여행에 저장 (전체 보기 중이면 첫 번째 여행) */
+  const addPlace = useCallback(
+    (draft: PlaceDraft, category: CategoryId, memo = "", tripId?: string): string => {
+      const id = newId();
+      setData((d) => {
+        const target = tripId ?? (d.current !== "all" ? d.current : d.trips[0].id);
+        const place: Place = { ...draft, id, tripId: target, category, memo, status: "want", createdAt: Date.now() };
+        return { ...d, places: [...d.places, place] };
+      });
+      return id;
+    },
+    [],
+  );
+
+  /** 같은 가게를 다른 여행에도 넣는다 (새 핀, 다녀옴은 초기화, 메모는 복사) */
+  const copyPlaceToTrip = useCallback((id: string, tripId: string) => {
+    setData((d) => {
+      const src = d.places.find((p) => p.id === id);
+      if (!src) return d;
+      const copy: Place = { ...src, id: newId(), tripId, status: "want", visitedAt: undefined, createdAt: Date.now() };
+      return { ...d, places: [...d.places, copy] };
+    });
   }, []);
 
   const updatePlace = useCallback((id: string, patch: Partial<Place>) => {
@@ -61,7 +161,11 @@ export function usePlaces() {
   }, []);
 
   const removePlace = useCallback((id: string) => {
-    setData((d) => ({ places: d.places.filter((p) => p.id !== id), route: d.route.filter((r) => r !== id) }));
+    setData((d) => {
+      const routes: Record<string, string[]> = {};
+      for (const [k, r] of Object.entries(d.routes)) routes[k] = r.filter((x) => x !== id);
+      return { ...d, places: d.places.filter((p) => p.id !== id), routes };
+    });
   }, []);
 
   const toggleVisited = useCallback((id: string) => {
@@ -77,49 +181,77 @@ export function usePlaces() {
     }));
   }, []);
 
+  /* ---------- 루트 (핀이 속한 여행의 루트를 바꾼다) ---------- */
+
+  const routeOf = useCallback(
+    (placeId: string): string[] => {
+      const tripId = data.places.find((p) => p.id === placeId)?.tripId;
+      return tripId ? (data.routes[tripId] ?? []) : [];
+    },
+    [data.places, data.routes],
+  );
+
   const addToRoute = useCallback((id: string) => {
-    setData((d) => (d.route.includes(id) ? d : { ...d, route: [...d.route, id] }));
+    setData((d) => editRouteOf(d, id, (r) => (r.includes(id) ? r : [...r, id])));
   }, []);
 
   const removeFromRoute = useCallback((id: string) => {
-    setData((d) => ({ ...d, route: d.route.filter((r) => r !== id) }));
+    setData((d) => editRouteOf(d, id, (r) => r.filter((x) => x !== id)));
   }, []);
 
   const moveInRoute = useCallback((id: string, delta: -1 | 1) => {
+    setData((d) =>
+      editRouteOf(d, id, (r) => {
+        const i = r.indexOf(id);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= r.length) return r;
+        const next = [...r];
+        [next[i], next[j]] = [next[j], next[i]];
+        return next;
+      }),
+    );
+  }, []);
+
+  const clearRoute = useCallback(() => {
+    setData((d) => (d.current === "all" ? d : { ...d, routes: { ...d.routes, [d.current]: [] } }));
+  }, []);
+
+  const loadSample = useCallback(() => {
     setData((d) => {
-      const i = d.route.indexOf(id);
-      const j = i + delta;
-      if (i < 0 || j < 0 || j >= d.route.length) return d;
-      const route = [...d.route];
-      [route[i], route[j]] = [route[j], route[i]];
-      return { ...d, route };
+      const tripId = d.current !== "all" ? d.current : d.trips[0].id;
+      return {
+        ...d,
+        places: [
+          ...d.places,
+          ...SAMPLE_PLACES.map(({ memo, category, ...draft }) => ({
+            ...draft,
+            id: newId(),
+            tripId,
+            category,
+            memo,
+            status: "want" as const,
+            createdAt: Date.now(),
+          })),
+        ],
+      };
     });
   }, []);
 
-  const clearRoute = useCallback(() => setData((d) => ({ ...d, route: [] })), []);
-
-  const loadSample = useCallback(() => {
-    setData((d) => ({
-      ...d,
-      places: [
-        ...d.places,
-        ...SAMPLE_PLACES.map(({ memo, category, ...draft }) => ({
-          ...draft,
-          id: newId(),
-          category,
-          memo,
-          status: "want" as const,
-          createdAt: Date.now(),
-        })),
-      ],
-    }));
-  }, []);
-
   return {
-    places: data.places,
-    route: data.route,
     loaded,
+    trips: data.trips,
+    currentTrip,
+    isAll,
+    tripCounts,
+    selectTrip,
+    createTrip,
+    updateTrip,
+    deleteTrip,
+    places,
+    route,
+    routeOf,
     addPlace,
+    copyPlaceToTrip,
     updatePlace,
     removePlace,
     toggleVisited,
