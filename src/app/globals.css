@@ -1176,3 +1176,8 @@ button:disabled {
 .empty .sheet__title {
   margin-right: 0;
 }
+
+.share__warn {
+  color: #c2410c !important;
+  font-size: 13px;
+}

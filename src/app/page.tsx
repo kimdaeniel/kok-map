@@ -15,6 +15,9 @@ import { DEFAULT_CENTER } from "@/lib/sample";
 import type { CategoryId, LatLng, PlaceDraft } from "@/lib/types";
 import { useMyLocation } from "@/lib/useMyLocation";
 import { usePlaces } from "@/lib/usePlaces";
+import { makeShareUrl, readShareHash, shareLink, type SharedTrip } from "@/lib/share";
+import { tripDates } from "@/lib/trips";
+import type { Trip } from "@/lib/types";
 
 type Draft = PlaceDraft & { category: CategoryId; manual: boolean };
 
@@ -29,6 +32,29 @@ export default function Home() {
   const [routeOpen, setRouteOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>({ categories: [], hideVisited: false });
+
+  const [incoming, setIncoming] = useState<SharedTrip | null>(null);
+
+  // 공유 링크(#trip=...)로 열었으면 "이 여행을 가져올까요?"를 띄운다
+  useEffect(() => {
+    if (!store.loaded) return;
+    readShareHash(location.hash).then((t) => {
+      history.replaceState(null, "", location.pathname + location.search); // 새로 고침해도 다시 안 뜨게
+      if (t) setIncoming(t);
+    });
+  }, [store.loaded]);
+
+  async function shareTrip(trip: Trip) {
+    const { places, route } = store.tripData(trip.id);
+    if (places.length === 0) {
+      alert(`'${trip.name}'에 아직 핀이 없어요. 핀을 꽂은 뒤 공유해 주세요.`);
+      return;
+    }
+    const url = await makeShareUrl(trip, places, route);
+    const r = await shareLink(trip.name, url);
+    if (r === "copied") alert("공유 링크를 복사했어요. 카톡 등에 붙여넣어 보내세요.");
+    else if (r === "failed") prompt("아래 링크를 복사해서 보내세요.", url);
+  }
 
   const selected = store.places.find((p) => p.id === selectedId) ?? null;
 
@@ -147,6 +173,7 @@ export default function Home() {
             onCreate={store.createTrip}
             onUpdate={store.updateTrip}
             onDelete={store.deleteTrip}
+            onShare={shareTrip}
           />
         </div>
         <SearchBar
@@ -180,6 +207,37 @@ export default function Home() {
         i
       </button>
       {creditsOpen && <Credits onClose={() => setCreditsOpen(false)} />}
+
+      {incoming && (
+        <div className="credits-backdrop" onClick={() => setIncoming(null)}>
+          <section className="credits trips" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="공유받은 여행">
+            <h2>🧳 공유받은 여행</h2>
+            <p>
+              <b>{incoming.name}</b>
+              {tripDates(incoming) ? ` (${tripDates(incoming)})` : ""} · 핀 {incoming.places.length}곳
+              {incoming.route.length > 0 ? ` · 루트 ${incoming.route.length}곳` : ""}
+            </p>
+            <p>내 지도에 이 여행을 추가할까요? 추가한 뒤에는 내 마음대로 고쳐도 보낸 사람 지도에는 영향이 없어요.</p>
+            {store.trips.some((t) => t.name === incoming.name) && (
+              <p className="share__warn">같은 이름의 여행이 이미 있어요. 하나 더 만들어져요.</p>
+            )}
+            <div className="sheet__row">
+              <button className="btn" onClick={() => setIncoming(null)}>
+                취소
+              </button>
+              <button
+                className="btn btn--primary"
+                onClick={() => {
+                  store.importTrip(incoming);
+                  setIncoming(null);
+                }}
+              >
+                내 지도에 추가
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <div className="fabs">
         <button

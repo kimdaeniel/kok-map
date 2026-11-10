@@ -10,7 +10,6 @@ export interface Trip {
   createdAt: number;
 }
 
-/** 지금 보고 있는 여행 id, 또는 모든 여행 핀을 한 번에 보는 "all" */
 /** 여행 id, "all"(모든 여행), "none"(아무 여행도 안 고른 빈 지도) */
 export type TripView = string | "all" | "none";
 

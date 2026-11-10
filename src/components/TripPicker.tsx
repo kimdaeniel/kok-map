@@ -14,6 +14,7 @@ interface Props {
   onCreate: (name: string, startDate?: string, endDate?: string) => void;
   onUpdate: (id: string, patch: Partial<Pick<Trip, "name" | "startDate" | "endDate">>) => void;
   onDelete: (id: string) => void;
+  onShare: (trip: Trip) => void;
 }
 
 /** 여행 이름·날짜 입력 칸 (새 여행 / 여행 수정 공통) */
@@ -79,7 +80,7 @@ function TripForm({
   );
 }
 
-export default function TripPicker({ trips, currentTrip, isAll, counts, totalCount, onSelect, onCreate, onUpdate, onDelete }: Props) {
+export default function TripPicker({ trips, currentTrip, isAll, counts, totalCount, onSelect, onCreate, onUpdate, onDelete, onShare }: Props) {
   const [open, setOpen] = useState(false);
   // 목록 / 새 여행 만들기 / 여행 수정
   const [mode, setMode] = useState<{ kind: "list" } | { kind: "new" } | { kind: "edit"; trip: Trip }>({ kind: "list" });
@@ -144,6 +145,9 @@ export default function TripPicker({ trips, currentTrip, isAll, counts, totalCou
                           <small>
                             {[tripDates(t), `${counts[t.id] ?? 0}곳`].filter(Boolean).join(" · ")}
                           </small>
+                        </button>
+                        <button className="trips__edit" onClick={() => onShare(t)} aria-label={`${t.name} 공유`}>
+                          공유
                         </button>
                         <button className="trips__edit" onClick={() => setMode({ kind: "edit", trip: t })} aria-label={`${t.name} 수정`}>
                           수정

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CategoryId, Place, PlaceDraft, Trip, TripView } from "./types";
 import { SAMPLE_PLACES } from "./sample";
+import type { SharedTrip } from "./share";
 
 const STORAGE_KEY = "kok-map:v2";
 /** 여행 기능 이전 저장 형식. 처음 열 때 한 번 "내 여행"으로 옮긴다 */
@@ -133,6 +134,31 @@ export function usePlaces() {
     });
   }, []);
 
+  /** 공유 링크로 받은 여행을 내 여행으로 추가하고 그 여행으로 바꾼다 */
+  const importTrip = useCallback((shared: SharedTrip): string => {
+    const t = newTrip(shared.name, shared.startDate, shared.endDate);
+    const now = Date.now();
+    const places: Place[] = shared.places.map((p) => ({ ...p, id: newId(), tripId: t.id, status: "want", createdAt: now }));
+    const route = shared.route.map((i) => places[i]?.id).filter((id): id is string => !!id);
+    setData((d) => ({
+      ...d,
+      trips: [...d.trips, t],
+      current: t.id,
+      places: [...d.places, ...places],
+      routes: { ...d.routes, [t.id]: [...new Set(route)] },
+    }));
+    return t.id;
+  }, []);
+
+  /** 공유할 때 쓰는 그 여행의 핀과 루트 */
+  const tripData = useCallback(
+    (tripId: string) => ({
+      places: data.places.filter((p) => p.tripId === tripId),
+      route: data.routes[tripId] ?? [],
+    }),
+    [data.places, data.routes],
+  );
+
   /* ---------- 핀 ---------- */
 
   /** tripId를 안 주면 지금 여행에 저장 (전체 보기·안 고름이면 첫 번째 여행) */
@@ -251,6 +277,8 @@ export function usePlaces() {
     createTrip,
     updateTrip,
     deleteTrip,
+    importTrip,
+    tripData,
     places,
     route,
     routeOf,
