@@ -41,7 +41,7 @@ export default function Home() {
   }, [me.pos, store.loaded, store.places.length]);
 
   // 처음 열 때와 여행을 바꿀 때, 그 여행의 핀이 다 보이게 지도를 맞춘다
-  const viewKey = store.currentTrip?.id ?? "all";
+  const viewKey = store.currentTrip?.id ?? (store.isAll ? "all" : "none");
   const fittedView = useRef<string | null>(null);
   useEffect(() => {
     if (!store.loaded || fittedView.current === viewKey) return;
@@ -140,6 +140,7 @@ export default function Home() {
           <TripPicker
             trips={store.trips}
             currentTrip={store.currentTrip}
+            isAll={store.isAll}
             counts={store.tripCounts}
             totalCount={Object.values(store.tripCounts).reduce((a, b) => a + b, 0)}
             onSelect={store.selectTrip}
@@ -212,11 +213,16 @@ export default function Home() {
             manual={draft.manual}
             trips={store.trips}
             defaultTripId={store.currentTrip?.id ?? store.trips[0].id}
-            askTrip={store.isAll}
+            askTrip={!store.currentTrip}
             onClose={() => setDraft(null)}
             onSave={(d, category, memo, tripId) => {
               const id = store.addPlace(d, category, memo, tripId);
               setDraft(null);
+              // 여행을 안 고른 상태에서 저장하면 그 여행으로 넘어가 방금 꽂은 핀을 보여준다
+              if (store.isNone) {
+                fittedView.current = tripId;
+                store.selectTrip(tripId);
+              }
               setSelectedId(id);
             }}
           />
@@ -241,6 +247,12 @@ export default function Home() {
               setSelectedId(null);
             }}
           />
+        ) : showEmpty && store.isNone ? (
+          <section className="sheet empty">
+            <p className="empty__pins">🧳</p>
+            <h2 className="sheet__title">어떤 여행의 핀을 볼까요?</h2>
+            <p>왼쪽 위 🧳 여행 고르기에서 여행을 고르거나 새로 만들어 보세요. 바로 검색해서 저장해도 돼요.</p>
+          </section>
         ) : showEmpty ? (
           <section className="sheet empty">
             <p className="empty__pins">🍰 🍜 🧸 📸</p>
@@ -255,7 +267,7 @@ export default function Home() {
               샘플 핀 구경하기
             </button>
           </section>
-        ) : store.isAll ? null : (
+        ) : !store.currentTrip ? null : (
           <RoutePanel
             stops={routeStops}
             open={routeOpen}

@@ -29,7 +29,7 @@ function newTrip(name: string, startDate?: string, endDate?: string): Trip {
 
 function emptyData(): StoredData {
   const t = newTrip("내 여행");
-  return { version: 2, trips: [t], current: t.id, places: [], routes: { [t.id]: [] } };
+  return { version: 2, trips: [t], current: "none", places: [], routes: { [t.id]: [] } };
 }
 
 /** placeId 핀이 속한 여행의 루트를 fn으로 바꾼다 */
@@ -44,7 +44,9 @@ function load(): StoredData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const d = JSON.parse(raw) as StoredData;
-      if (d.version === 2 && Array.isArray(d.trips) && d.trips.length > 0 && Array.isArray(d.places)) return d;
+      // 앱을 열 때는 항상 아무 여행도 안 고른 빈 지도에서 시작
+      if (d.version === 2 && Array.isArray(d.trips) && d.trips.length > 0 && Array.isArray(d.places))
+        return { ...d, current: "none" };
     }
     // 예전 형식(여행 없음) → 기존 핀과 루트를 "내 여행"으로 옮긴다
     const legacy = localStorage.getItem(LEGACY_KEY);
@@ -54,7 +56,7 @@ function load(): StoredData {
       return {
         version: 2,
         trips: [t],
-        current: t.id,
+        current: "none",
         places: (old.places ?? []).map((p) => ({ ...p, tripId: t.id })),
         routes: { [t.id]: old.route ?? [] },
       };
@@ -84,12 +86,13 @@ export function usePlaces() {
   }, [data, loaded]);
 
   const isAll = data.current === "all";
-  const currentTrip = isAll ? null : (data.trips.find((t) => t.id === data.current) ?? data.trips[0]);
+  const isNone = !isAll && !data.trips.some((t) => t.id === data.current);
+  const currentTrip = isAll || isNone ? null : data.trips.find((t) => t.id === data.current)!;
 
-  /** 지금 지도에 보일 핀 (지금 여행, 또는 전체 보기면 모두) */
+  /** 지금 지도에 보일 핀 (지금 여행, 전체 보기면 모두, 안 골랐으면 없음) */
   const places = useMemo(
-    () => (currentTrip ? data.places.filter((p) => p.tripId === currentTrip.id) : data.places),
-    [data.places, currentTrip],
+    () => (currentTrip ? data.places.filter((p) => p.tripId === currentTrip.id) : isAll ? data.places : []),
+    [data.places, currentTrip, isAll],
   );
   /** 지금 여행의 루트 (전체 보기에서는 비어 있음) */
   const route = useMemo(() => (currentTrip ? (data.routes[currentTrip.id] ?? []) : []), [data.routes, currentTrip]);
@@ -123,21 +126,21 @@ export function usePlaces() {
       delete routes[id];
       if (trips.length === 0) {
         const t = newTrip("내 여행");
-        return { ...d, trips: [t], current: t.id, places, routes: { ...routes, [t.id]: [] } };
+        return { ...d, trips: [t], current: "none", places, routes: { ...routes, [t.id]: [] } };
       }
-      const current = d.current === id ? trips[0].id : d.current;
+      const current = d.current === id ? "none" : d.current;
       return { ...d, trips, current, places, routes };
     });
   }, []);
 
   /* ---------- 핀 ---------- */
 
-  /** tripId를 안 주면 지금 여행에 저장 (전체 보기 중이면 첫 번째 여행) */
+  /** tripId를 안 주면 지금 여행에 저장 (전체 보기·안 고름이면 첫 번째 여행) */
   const addPlace = useCallback(
     (draft: PlaceDraft, category: CategoryId, memo = "", tripId?: string): string => {
       const id = newId();
       setData((d) => {
-        const target = tripId ?? (d.current !== "all" ? d.current : d.trips[0].id);
+        const target = tripId ?? (d.trips.some((t) => t.id === d.current) ? d.current : d.trips[0].id);
         const place: Place = { ...draft, id, tripId: target, category, memo, status: "want", createdAt: Date.now() };
         return { ...d, places: [...d.places, place] };
       });
@@ -213,12 +216,12 @@ export function usePlaces() {
   }, []);
 
   const clearRoute = useCallback(() => {
-    setData((d) => (d.current === "all" ? d : { ...d, routes: { ...d.routes, [d.current]: [] } }));
+    setData((d) => (d.trips.some((t) => t.id === d.current) ? { ...d, routes: { ...d.routes, [d.current]: [] } } : d));
   }, []);
 
   const loadSample = useCallback(() => {
     setData((d) => {
-      const tripId = d.current !== "all" ? d.current : d.trips[0].id;
+      const tripId = d.trips.some((t) => t.id === d.current) ? d.current : d.trips[0].id;
       return {
         ...d,
         places: [
@@ -242,6 +245,7 @@ export function usePlaces() {
     trips: data.trips,
     currentTrip,
     isAll,
+    isNone,
     tripCounts,
     selectTrip,
     createTrip,

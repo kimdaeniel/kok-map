@@ -6,7 +6,8 @@ import type { Trip, TripView } from "@/lib/types";
 
 interface Props {
   trips: Trip[];
-  currentTrip: Trip | null; // null이면 전체 보기
+  currentTrip: Trip | null; // null이면 전체 보기 또는 안 고름
+  isAll: boolean;
   counts: Record<string, number>;
   totalCount: number;
   onSelect: (view: TripView) => void;
@@ -78,7 +79,7 @@ function TripForm({
   );
 }
 
-export default function TripPicker({ trips, currentTrip, counts, totalCount, onSelect, onCreate, onUpdate, onDelete }: Props) {
+export default function TripPicker({ trips, currentTrip, isAll, counts, totalCount, onSelect, onCreate, onUpdate, onDelete }: Props) {
   const [open, setOpen] = useState(false);
   // 목록 / 새 여행 만들기 / 여행 수정
   const [mode, setMode] = useState<{ kind: "list" } | { kind: "new" } | { kind: "edit"; trip: Trip }>({ kind: "list" });
@@ -88,7 +89,7 @@ export default function TripPicker({ trips, currentTrip, counts, totalCount, onS
     setMode({ kind: "list" });
   };
 
-  const label = currentTrip ? currentTrip.name : "모든 여행";
+  const label = currentTrip ? currentTrip.name : isAll ? "모든 여행" : "여행 고르기";
   const dates = currentTrip ? tripDates(currentTrip) : "";
 
   return (
@@ -116,6 +117,18 @@ export default function TripPicker({ trips, currentTrip, counts, totalCount, onS
                 <h2>여행 고르기</h2>
                 <p>고른 여행의 핀만 지도에 보여요.</p>
                 <ul className="trips__list">
+                  <li className={!currentTrip && !isAll ? "trips__item--on" : ""}>
+                    <button
+                      className="trips__pick"
+                      onClick={() => {
+                        onSelect("none");
+                        close();
+                      }}
+                    >
+                      <b>선택 안 함</b>
+                      <small>핀 없는 빈 지도</small>
+                    </button>
+                  </li>
                   {trips.map((t) => {
                     const on = currentTrip?.id === t.id;
                     return (
@@ -138,7 +151,7 @@ export default function TripPicker({ trips, currentTrip, counts, totalCount, onS
                       </li>
                     );
                   })}
-                  <li className={currentTrip ? "" : "trips__item--on"}>
+                  <li className={isAll ? "trips__item--on" : ""}>
                     <button
                       className="trips__pick"
                       onClick={() => {
